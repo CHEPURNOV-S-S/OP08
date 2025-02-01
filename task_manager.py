@@ -11,29 +11,36 @@ class Sticker:
         self.creation_time = datetime.now()
         self.completion_time = None
         self.editing = False  # Флаг для отслеживания состояния редактирования
+        self.original_bg = 'lightyellow'
+        self.highlight_bg = 'yellow'
+        self.completed_bg = 'lightgreen'
 
         # Создаем фрейм стикера с заданной шириной
-        self.sticker_frame = tk.Frame(master, bg='lightyellow', bd=2)
+        self.sticker_frame = tk.Frame(master, bg=self.original_bg, bd=2)
         self.sticker_frame.config(width=200)  # Устанавливаем ширину стикера
 
         # Title Entry with max length validation
-        vcmd = (self.sticker_frame.register(self.validate_title), '%P')
-        self.title_entry = tk.Entry(self.sticker_frame, font=('Consolas', 12, 'bold'), bg='lightyellow', validate='key',
-                                    validatecommand=vcmd)
-        self.title_entry.insert(0, self.title)
-        self.title_entry.config(state='readonly')  # Initially read-only
-        self.title_entry.pack(anchor='w', fill='x', padx=5, pady=5)  # Expand to full width
+        self.title_text = tk.Text(self.sticker_frame,height=1, width=23,
+                                  font=('Consolas', 12, 'bold'), bg=self.original_bg)
+        self.title_text.tag_configure("center", justify='center')
+        self.title_text.insert("1.0", self.title)
+        self.title_text.tag_add("center", "1.0", tk.END)
+
+        self.title_text.config(state='disabled')  # Initially read-only
+        self.title_text.pack(anchor='w', fill='x', padx=5, pady=5)  # Expand to full width
+        #Обрабатываем событие, чтобы запретить ввод более 23 символов в заголовок.
+        self.title_text.bind("<KeyRelease>", lambda event: self.validate_text_length(event, max_length=23))
 
         # Description Text with scrollbar
         self.desc_text = scrolledtext.ScrolledText(self.sticker_frame, wrap='word', height=4, width=23,
-                                                   bg='lightyellow', relief='flat')
+                                                   bg=self.original_bg, relief='flat')
         self.desc_text.insert('1.0', self.description)
         self.desc_text.config(state='disabled')
         self.desc_text.pack(anchor='w', fill='x', padx=5, pady=0)  # More compact packing and expand to full width
 
         # Buttons Frame
-        buttons_frame = tk.Frame(self.sticker_frame, bg='lightyellow')
-        buttons_frame.pack(side='bottom', fill='x', padx=5, pady=5)
+        self.buttons_frame = tk.Frame(self.sticker_frame, bg=self.original_bg)
+        self.buttons_frame.pack(side='bottom', fill='x', padx=5, pady=5)
 
         # Button Symbols (Unicode)
         check_symbol = "✅"
@@ -42,16 +49,16 @@ class Sticker:
         delete_symbol = "❌"
 
         # Buttons
-        self.check_button = tk.Button(buttons_frame, text=check_symbol, command=self.mark_completed)
-        self.edit_button = tk.Button(buttons_frame, text=edit_symbol, command=self.toggle_edit_task)
-        self.info_button = tk.Button(buttons_frame, text=info_symbol, command=self.show_info)
-        self.delete_button = tk.Button(buttons_frame, text=delete_symbol, command=self.confirm_delete_task)
+        self.check_button = tk.Button(self.buttons_frame, text=check_symbol, command=self.mark_completed)
+        self.edit_button = tk.Button(self.buttons_frame, text=edit_symbol, command=self.toggle_edit_task)
+        self.info_button = tk.Button(self.buttons_frame, text=info_symbol, command=self.show_info)
+        self.delete_button = tk.Button(self.buttons_frame, text=delete_symbol, command=self.confirm_delete_task)
 
         # Use grid for centering buttons
-        buttons_frame.grid_columnconfigure(0, weight=1)
-        buttons_frame.grid_columnconfigure(1, weight=1)
-        buttons_frame.grid_columnconfigure(2, weight=1)
-        buttons_frame.grid_columnconfigure(3, weight=1)
+        self.buttons_frame.grid_columnconfigure(0, weight=1)
+        self.buttons_frame.grid_columnconfigure(1, weight=1)
+        self.buttons_frame.grid_columnconfigure(2, weight=1)
+        self.buttons_frame.grid_columnconfigure(3, weight=1)
 
         self.check_button.grid(row=0, column=0, padx=2)
         self.edit_button.grid(row=0, column=1, padx=2)
@@ -63,31 +70,60 @@ class Sticker:
         self.sticker_frame.bind("<ButtonRelease-1>", self.stop_move)
         self.sticker_frame.bind("<B1-Motion>", self.on_motion)
 
+        self.title_text.bind("<ButtonPress-1>", self.start_move)
+        self.title_text.bind("<ButtonRelease-1>", self.stop_move)
+        self.title_text.bind("<B1-Motion>", self.on_motion)
+
+        self.desc_text.bind("<ButtonPress-1>", self.start_move)
+        self.desc_text.bind("<ButtonRelease-1>", self.stop_move)
+        self.desc_text.bind("<B1-Motion>", self.on_motion)
+
+        self.buttons_frame.bind("<ButtonPress-1>", self.start_move)
+        self.buttons_frame.bind("<ButtonRelease-1>", self.stop_move)
+        self.buttons_frame.bind("<B1-Motion>", self.on_motion)
+
         # Place the sticker
         self.sticker_frame.place(x=x, y=y)
 
     def start_move(self, event):
         self.x = event.x
         self.y = event.y
+        self.sticker_frame.config(bg=self.highlight_bg)  # Подсветка при начале перемещения
 
     def stop_move(self, event):
         self.x = None
         self.y = None
+        self.sticker_frame.config(bg=self.original_bg)  # Возвращаем исходный цвет при окончании перемещения
 
     def on_motion(self, event):
-        deltax = event.x - self.x
-        deltay = event.y - self.y
-        x = self.sticker_frame.winfo_x() + deltax
-        y = self.sticker_frame.winfo_y() + deltay
+        if self.x is None or self.y is None:
+            return
+        delta_x = event.x - self.x
+        delta_y = event.y - self.y
+        x = self.sticker_frame.winfo_x() + delta_x
+        y = self.sticker_frame.winfo_y() + delta_y
+
+        # Ограничиваем перемещение за пределы слева и сверху
+        if x < 0:
+            x = 0
+        if y < 0:
+            y = 0
+
         self.sticker_frame.place(x=x, y=y)
 
     def mark_completed(self):
-        if not self.completion_time:
-            self.completion_time = datetime.now()
-            self.title_entry.config(bg='lightgreen')
-            messagebox.showinfo("Задача выполнена", "Задача отмечена как выполненная!")
+        if self.completion_time:
+            # Если задача уже выполнена, спрашиваем пользователя, хочет ли он отменить выполнение
+            response = messagebox.askyesno("Отмена выполнения", "Пометить задачу не выполненной?")
+            if response:
+                self.completion_time = None
+                self.title_text.config(bg=self.original_bg)  # Возвращаем исходный цвет
+                messagebox.showinfo("Задача не выполнена", "Пометка о выполнении задачи отменена.")
         else:
-            messagebox.showinfo("Задача уже выполнена", "Эта задача уже выполнена.")
+            # Если задача не выполнена, помечаем её как выполненную
+            self.completion_time = datetime.now()
+            self.title_text.config(bg=self.completed_bg)  # Изменяем фон на lightgreen
+            messagebox.showinfo("Задача выполнена", "Задача отмечена как выполненная!")
 
     def toggle_edit_task(self):
         if not self.editing:
@@ -96,7 +132,7 @@ class Sticker:
             self.edit_button.config(relief=tk.SUNKEN)  # Кнопка становится зажатой
 
             # Делаем поля редактируемыми
-            self.title_entry.config(state='normal')
+            self.title_text.config(state='normal')
             self.desc_text.config(state='normal')
             self.desc_text.focus_set()
             self.desc_text.see('1.0')  # Прокручиваем к началу текста
@@ -106,16 +142,20 @@ class Sticker:
             self.edit_button.config(relief=tk.RAISED)  # Кнопка становится обычной
 
             # Сохраняем новые значения
-            new_title = self.title_entry.get()
+            new_title = self.title_text.get('1.0', 'end')
             new_desc = self.desc_text.get('1.0', 'end').strip()
-            if new_title:
+            if new_title and len(new_title) > 6:
                 self.title = new_title
-                self.title_entry.config(state='readonly')
-
+            else:
+                self.title_text.delete('1.0', tk.END)  # Удаляем весь текст
+                self.title_text.insert("1.0", self.title)
+                self.title_text.tag_add("center", "1.0", tk.END)
+            self.title_text.config(state='disabled')
+            self.title_text.yview_moveto(0)  # Прокручиваем к началу текста
             if new_desc:
                 self.description = new_desc
-                self.desc_text.config(state='disabled')
-                self.desc_text.yview_moveto(0)  # Прокручиваем к началу текста
+            self.desc_text.config(state='disabled')
+            self.desc_text.yview_moveto(0)  # Прокручиваем к началу текста
 
     def show_info(self):
         info = f"Время создания: {self.creation_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
@@ -138,6 +178,17 @@ class Sticker:
         # Проверяем длину нового значения
         return len(new_value) <= 20
 
+    def validate_text_length(self, event, max_length=100):
+        text_widget = event.widget
+        current_text = text_widget.get("1.0", tk.END)
+        if len(current_text) > max_length:
+            text_widget.delete(f"1.{len(current_text)-1}", tk.END)
+            self.title_text.tag_add("center", "1.0", tk.END)
+        if '\n' in current_text:
+            current_text = current_text.replace('\n', '')  # Удаляем символы переноса строки
+            text_widget.delete("1.0", tk.END)  # Удаляем весь текст
+            text_widget.insert("1.0", current_text[:max_length])  # Вставляем текст без переносов строк
+            self.title_text.tag_add("center", "1.0", tk.END)
 
 def create_stickers(root, num_stickers=4):
     for i in range(num_stickers):
@@ -150,7 +201,5 @@ if __name__ == "__main__":
     root = tk.Tk()
     root.geometry("800x600")
     root.title("Менеджер задач")
-
     create_stickers(root)
-
     root.mainloop()
