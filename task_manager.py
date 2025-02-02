@@ -5,6 +5,7 @@ from datetime import datetime
 
 class Sticker:
     def __init__(self, master, x, y, title="Задача", description="Описание задачи"):
+        self.response = None
         self.master = master
         self.title = title
         self.description = description
@@ -20,8 +21,8 @@ class Sticker:
         self.sticker_frame.config(width=200)  # Устанавливаем ширину стикера
 
         # Title Entry with max length validation
-        self.title_text = tk.Text(self.sticker_frame,height=1, width=23,
-                                  font=('Consolas', 12, 'bold'), bg=self.original_bg)
+        self.title_text = tk.Text(self.sticker_frame,height=1, width=23, relief=tk.RIDGE,
+                                  font=('Consolas', 12, 'bold'), bg=self.highlight_bg)
         self.title_text.tag_configure("center", justify='center')
         self.title_text.insert("1.0", self.title)
         self.title_text.tag_add("center", "1.0", tk.END)
@@ -114,16 +115,18 @@ class Sticker:
     def mark_completed(self):
         if self.completion_time:
             # Если задача уже выполнена, спрашиваем пользователя, хочет ли он отменить выполнение
-            response = messagebox.askyesno("Отмена выполнения", "Пометить задачу не выполненной?")
+            response = self.custom_messagebox_askyesno("Отмена выполнения", "Пометить задачу не выполненной?")
             if response:
                 self.completion_time = None
-                self.title_text.config(bg=self.original_bg)  # Возвращаем исходный цвет
-                messagebox.showinfo("Задача не выполнена", "Пометка о выполнении задачи отменена.")
+                self.title_text.config(bg=self.highlight_bg)  # Возвращаем исходный цвет
+                x = self.sticker_frame.winfo_rootx()
+                y = self.sticker_frame.winfo_rooty() + self.sticker_frame.winfo_height()
+                self.show_custom_messagebox("Задача не выполнена", "Пометка о выполнении задачи отменена.")
         else:
             # Если задача не выполнена, помечаем её как выполненную
             self.completion_time = datetime.now()
             self.title_text.config(bg=self.completed_bg)  # Изменяем фон на lightgreen
-            messagebox.showinfo("Задача выполнена", "Задача отмечена как выполненная!")
+            self.show_custom_messagebox("Задача выполнена", "Задача отмечена как выполненная!")
 
     def toggle_edit_task(self):
         if not self.editing:
@@ -163,10 +166,10 @@ class Sticker:
             info += f"Время завершения: {self.completion_time.strftime('%Y-%m-%d %H:%M:%S')}"
         else:
             info += "Время завершения: Задача не завершена"
-        messagebox.showinfo("Информация о задаче", info)
+        self.show_custom_messagebox("Информация о задаче", info)
 
     def confirm_delete_task(self):
-        response = messagebox.askyesno("Подтверждение удаления",
+        response = self.custom_messagebox_askyesno("Подтверждение удаления",
                                        f"Вы действительно хотите удалить задачу '{self.title}'?")
         if response:
             self.delete_task()
@@ -189,6 +192,88 @@ class Sticker:
             text_widget.delete("1.0", tk.END)  # Удаляем весь текст
             text_widget.insert("1.0", current_text[:max_length])  # Вставляем текст без переносов строк
             self.title_text.tag_add("center", "1.0", tk.END)
+
+    def show_custom_messagebox(self, title, message):
+        # Создаем Toplevel окно
+        msg_box = tk.Toplevel(self.master)
+        msg_box.title(title)
+
+        # Устанавливаем размер окна как размер стикера
+        sticker_width = self.sticker_frame.winfo_width()
+        sticker_height = self.sticker_frame.winfo_height()
+        msg_box.geometry(
+            f"{sticker_width}x{sticker_height-35}+{self.sticker_frame.winfo_rootx()-7}+{self.sticker_frame.winfo_rooty() + self.sticker_frame.winfo_height()}")
+
+        # Делаем окно модальным
+        msg_box.transient(self.master)
+        msg_box.grab_set()
+
+        # Блокируем возможность изменения размеров окна
+        msg_box.resizable(False, False)
+
+        # Создаем метку для сообщения с поддержкой многострочного текста
+        label = tk.Label(msg_box, text=message, font=('Consolas', 10), justify='center', wraplength=sticker_width - 20)
+        label.pack(padx=2, pady=2, expand=True, fill='both')
+
+        # Создаем кнопку OK
+        ok_button = tk.Button(msg_box, text="OK", command=msg_box.destroy, width=10)
+        ok_button.pack(pady=5)
+
+        # Центрируем кнопку OK
+        ok_button.focus_set()
+        ok_button.bind("<Return>", lambda event: msg_box.destroy())
+
+        # Ждем закрытия окна
+        msg_box.wait_window()
+
+    def custom_messagebox_askyesno(self, title, message):
+        # Создаем Toplevel окно
+        msg_box = tk.Toplevel(self.master)
+        msg_box.title(title)
+
+        # Устанавливаем размер окна как размер стикера
+        sticker_width = self.sticker_frame.winfo_width()
+        sticker_height = self.sticker_frame.winfo_height()
+        msg_box.geometry(
+            f"{sticker_width}x{sticker_height-35}+{self.sticker_frame.winfo_rootx()-7}+{self.sticker_frame.winfo_rooty() + self.sticker_frame.winfo_height()}")
+
+        # Делаем окно модальным
+        msg_box.transient(self.master)
+        msg_box.grab_set()
+
+        # Блокируем возможность изменения размеров окна
+        msg_box.resizable(False, False)
+
+        # Создаем метку для сообщения с поддержкой многострочного текста
+        label = tk.Label(msg_box, text=message, font=('Consolas', 10), justify='center', wraplength=sticker_width - 20)
+        label.pack(padx=2, pady=2, expand=True, fill='both')
+
+        # Создаем кнопки Yes и No
+        button_frame = tk.Frame(msg_box)
+        button_frame.pack(pady=5)
+
+        yes_button = tk.Button(button_frame, text="Да", command=lambda: self.on_yes_no_response(msg_box, True),
+                               width=10)
+        yes_button.pack(side='left', padx=5)
+
+        no_button = tk.Button(button_frame, text="Нет", command=lambda: self.on_yes_no_response(msg_box, False),
+                              width=10)
+        no_button.pack(side='right', padx=5)
+
+        # Центрируем кнопки
+        yes_button.focus_set()
+        yes_button.bind("<Return>", lambda event: self.on_yes_no_response(msg_box, True))
+        no_button.bind("<Return>", lambda event: self.on_yes_no_response(msg_box, False))
+
+        # Ждем закрытия окна
+        msg_box.wait_window()
+
+        return self.response
+
+    def on_yes_no_response(self, msg_box, response):
+        self.response = response
+        msg_box.destroy()
+
 
 def create_stickers(root, num_stickers=4):
     for i in range(num_stickers):
