@@ -15,6 +15,8 @@ class Board:
         self.is_fixed = is_fixed  # Флаг для фиксированных досок
         self.boards = boards  # Список всех досок
 
+        self.shadow = None  # Атрибут для хранения текущей тени
+
         # Список доступных цветов
         self.COLORS_ORIGINAL_BG = COLORS_HIGHLIGHT_BG.keys()
 
@@ -173,6 +175,28 @@ class Board:
 
         # Включаем режим редактирования для нового стикера
         new_sticker.toggle_edit_task()
+
+
+    def get_insert_index(self, new_sticker_center_y):
+        # Находим место для вставки стикера
+        for i, sticker in enumerate(self.stickers):
+            sticker_y = sticker.sticker_frame.winfo_y()
+            sticker_height = sticker.sticker_frame.winfo_height()
+
+            # Если центр перемещаемого стикера выше середины текущего стикера
+            if new_sticker_center_y < sticker_y + sticker_height // 2:
+                return i
+
+        # Если ниже всех стикеров, вставляем в конец
+        return len(self.stickers)
+
+    def insert_sticker(self, sticker, sticker_center_y):
+        # Вставляем стикер в указанную позицию
+        new_sticker_index = self.get_insert_index(sticker_center_y)
+
+        self.stickers.insert(new_sticker_index, sticker)
+        self.update_height()
+        self.rearrange_stickers()
 
     def toggle_edit_board(self):
 

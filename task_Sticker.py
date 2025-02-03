@@ -1,4 +1,5 @@
 import tkinter as tk
+from selectors import SelectorKey
 from tkinter import scrolledtext, simpledialog, messagebox
 from datetime import datetime
 
@@ -31,6 +32,9 @@ class Sticker:
 
         # Список всех досок
         self.boards = boards
+
+        # Тень стикера
+        self.shadow = None
 
         # Создаем фрейм стикера
         self.sticker_frame = tk.Frame(master, bg=self.original_bg, bd=2)
@@ -118,15 +122,20 @@ class Sticker:
     def stop_move(self, event):
         target_board = self.find_target_board(event)
         if target_board:
-            # Перемещаем стикер на новую доску
-            self.relative_x = event.x_root - target_board.board_frame.winfo_rootx()
-            self.relative_y = event.y_root - target_board.board_frame.winfo_rooty()
-            self.sticker_frame.place(in_=target_board.board_frame, x=self.relative_x, y=self.relative_y)
+            # Находим место для вставки
+            sticker_center_y = self.sticker_frame.winfo_y() + self.sticker_frame.winfo_height() // 2
+
+            # Удаляем старый стикер из текущей доски
+            if self.current_board:
+                self.current_board.remove_sticker(self)
+
+            # Вставляем стикер в новую позицию
+            target_board.insert_sticker(self, sticker_center_y)
+
+            # Обновляем ссылку на текущую доску
             self.current_board = target_board
             self.previous_board = None
-            target_board.add_sticker(self)
-            # Перераспределяем стикеры на новой доске
-            target_board.rearrange_stickers()
+
         else:
             # Возвращаем стикер на исходную позицию
             if self.previous_board:
@@ -134,7 +143,7 @@ class Sticker:
                 self.current_board = self.previous_board
                 self.previous_board = None
                 self.current_board.add_sticker(self)
-                self.current_board.rearrange_stickers()  # Перераспределяем стикеры на исходной доске
+                self.current_board.rearrange_stickers()
 
         self.sticker_frame.config(bg=self.original_bg)  # Возвращаем исходный цвет
 
@@ -155,6 +164,7 @@ class Sticker:
     def on_motion(self, event):
         if self.x is None or self.y is None:
             return
+
         delta_x = event.x - self.x
         delta_y = event.y - self.y
         x = self.sticker_frame.winfo_x() + delta_x
@@ -167,6 +177,15 @@ class Sticker:
             y = 0
 
         self.sticker_frame.place(x=x, y=y)
+
+        if self.shadow == None:
+
+
+        # Находим целевую доску и передаём ей информацию о позиции стикера
+        target_board = self.find_target_board(event)
+        if target_board:
+            sticker_center_y = self.sticker_frame.winfo_y() + self.sticker_frame.winfo_height() // 2
+            target_board.update_shadow(sticker_center_y, self.height)
 
     def mark_completed(self):
         if self.completion_time:
@@ -326,6 +345,46 @@ class Sticker:
     def on_yes_no_response(self, msg_box, response):
         self.response = response
         msg_box.destroy()
+
+
+class Shadow(Sticker):
+    def __init__(self, master, x, y, on_delete=None, board=None, boards=None, sticker=None):
+        super().__init__(master, x, y, title="", description="", on_delete=on_delete, board=board, boards=boards)
+        self.is_shadow = True  # Флаг, что это тень
+        self.sticker_frame.config(bg='darkgray')  # Цвет тени
+        self.sticker_frame.place(in_=board.board_frame, x=x, y=y, width=self.width, height=self.height)
+        self.title_text.config(bg='gray')
+        self.desc_text.config(bg='gray')
+        self.buttons_frame.config(bg='gray')
+        self.sticker = sticker  # Ссылка на родительский стикер
+        # Отвязываем события перетаскивания
+        self.unbind_drag_events()
+
+    def unbind_drag_events(self):
+        # Отвязываем события для всех элементов тени
+        self.sticker_frame.unbind("<ButtonPress-3>")
+        self.sticker_frame.unbind("<ButtonRelease-3>")
+        self.sticker_frame.unbind("<B3-Motion>")
+
+        self.title_text.unbind("<ButtonPress-3>")
+        self.title_text.unbind("<ButtonRelease-3>")
+        self.title_text.unbind("<B3-Motion>")
+
+        self.desc_text.unbind("<ButtonPress-3>")
+        self.desc_text.unbind("<ButtonRelease-3>")
+        self.desc_text.unbind("<B3-Motion>")
+
+        self.buttons_frame.unbind("<ButtonPress-3>")
+        self.buttons_frame.unbind("<ButtonRelease-3>")
+        self.buttons_frame.unbind("<B3-Motion>")
+
+    def toggle_edit_task(self):
+        # Редактирование тени невозможно
+        pass
+
+    def mark_completed(self):
+        # Отметка выполнения тени невозможна
+        pass
 
 
 def create_stickers(root, num_stickers=4):
