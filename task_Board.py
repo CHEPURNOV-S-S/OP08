@@ -160,6 +160,7 @@ class Board:
             title="",
             description="",
             on_delete=self.remove_sticker,  # Передаем коллбэк
+            board = self,
             boards = self.boards
         )
 

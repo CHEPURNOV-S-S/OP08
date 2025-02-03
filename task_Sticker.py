@@ -83,21 +83,21 @@ class Sticker:
         self.delete_button.grid(row=0, column=3, padx=2)
 
         # Добавляем функционал перетаскивания
-        self.sticker_frame.bind("<ButtonPress-1>", self.start_move)
-        self.sticker_frame.bind("<ButtonRelease-1>", self.stop_move)
-        self.sticker_frame.bind("<B1-Motion>", self.on_motion)
+        self.sticker_frame.bind("<ButtonPress-3>", self.start_move)
+        self.sticker_frame.bind("<ButtonRelease-2>", self.stop_move)
+        self.sticker_frame.bind("<B3-Motion>", self.on_motion)
 
-        self.title_text.bind("<ButtonPress-1>", self.start_move)
-        self.title_text.bind("<ButtonRelease-1>", self.stop_move)
-        self.title_text.bind("<B1-Motion>", self.on_motion)
+        self.title_text.bind("<ButtonPress-3>", self.start_move)
+        self.title_text.bind("<ButtonRelease-3>", self.stop_move)
+        self.title_text.bind("<B3-Motion>", self.on_motion)
 
-        self.desc_text.bind("<ButtonPress-1>", self.start_move)
-        self.desc_text.bind("<ButtonRelease-1>", self.stop_move)
-        self.desc_text.bind("<B1-Motion>", self.on_motion)
+        self.desc_text.bind("<ButtonPress-3>", self.start_move)
+        self.desc_text.bind("<ButtonRelease-3>", self.stop_move)
+        self.desc_text.bind("<B3-Motion>", self.on_motion)
 
-        self.buttons_frame.bind("<ButtonPress-1>", self.start_move)
-        self.buttons_frame.bind("<ButtonRelease-1>", self.stop_move)
-        self.buttons_frame.bind("<B1-Motion>", self.on_motion)
+        self.buttons_frame.bind("<ButtonPress-3>", self.start_move)
+        self.buttons_frame.bind("<ButtonRelease-3>", self.stop_move)
+        self.buttons_frame.bind("<B3-Motion>", self.on_motion)
 
 
     def start_move(self, event):
@@ -177,7 +177,6 @@ class Sticker:
                 self.title_text.config(bg=self.highlight_bg)  # Возвращаем исходный цвет
                 x = self.sticker_frame.winfo_rootx()
                 y = self.sticker_frame.winfo_rooty() + self.sticker_frame.winfo_height()
-                self.show_custom_messagebox("Задача не выполнена", "Пометка о выполнении задачи отменена.")
         else:
             # Если задача не выполнена, помечаем её как выполненную
             self.completion_time = datetime.now()
