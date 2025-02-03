@@ -4,21 +4,37 @@ from datetime import datetime
 
 
 class Sticker:
-    def __init__(self, master, x, y, title="Задача", description="Описание задачи"):
-        self.response = None
+    def __init__(self, master, x, y, title="Задача", description="Описание задачи",
+                 on_delete=None, board=None, boards=None):
         self.master = master
         self.title = title
         self.description = description
+        self.on_delete = on_delete  # Коллбэк для уведомления о удалении
         self.creation_time = datetime.now()
         self.completion_time = None
         self.editing = False  # Флаг для отслеживания состояния редактирования
         self.original_bg = 'lightyellow'
         self.highlight_bg = 'yellow'
         self.completed_bg = 'lightgreen'
+        self.width = 210
+        self.height = 140
 
-        # Создаем фрейм стикера с заданной шириной
+        # Относительные координаты стикера относительно доски
+        self.relative_x = x
+        self.relative_y = y
+
+        # Текущая доска
+        self.current_board = board
+
+        # Текущая доска
+        self.previous_board = None
+
+        # Список всех досок
+        self.boards = boards
+
+        # Создаем фрейм стикера
         self.sticker_frame = tk.Frame(master, bg=self.original_bg, bd=2)
-        self.sticker_frame.config(width=200)  # Устанавливаем ширину стикера
+        self.sticker_frame.place(x=x, y=y, width=self.width, height=self.height)
 
         # Title Entry with max length validation
         self.title_text = tk.Text(self.sticker_frame,height=1, width=23, relief=tk.RIDGE,
@@ -66,7 +82,7 @@ class Sticker:
         self.info_button.grid(row=0, column=2, padx=2)
         self.delete_button.grid(row=0, column=3, padx=2)
 
-        # Drag and Drop functionality
+        # Добавляем функционал перетаскивания
         self.sticker_frame.bind("<ButtonPress-1>", self.start_move)
         self.sticker_frame.bind("<ButtonRelease-1>", self.stop_move)
         self.sticker_frame.bind("<B1-Motion>", self.on_motion)
@@ -83,18 +99,58 @@ class Sticker:
         self.buttons_frame.bind("<ButtonRelease-1>", self.stop_move)
         self.buttons_frame.bind("<B1-Motion>", self.on_motion)
 
-        # Place the sticker
-        self.sticker_frame.place(x=x, y=y)
 
     def start_move(self, event):
         self.x = event.x
         self.y = event.y
+
+        # Если стикер находится на доске, открепляем его
+        if self.current_board:
+            self.previous_board = self.current_board
+
+            self.current_board.remove_sticker(self)  # Удаляем стикер из списка текущей доски
+            self.sticker_frame.place(in_=self.master,
+                                     x=self.sticker_frame.winfo_x(),
+                                     y=self.sticker_frame.winfo_y())
+            self.current_board = None
         self.sticker_frame.config(bg=self.highlight_bg)  # Подсветка при начале перемещения
 
     def stop_move(self, event):
-        self.x = None
-        self.y = None
-        self.sticker_frame.config(bg=self.original_bg)  # Возвращаем исходный цвет при окончании перемещения
+        target_board = self.find_target_board(event)
+        if target_board:
+            # Перемещаем стикер на новую доску
+            self.relative_x = event.x_root - target_board.board_frame.winfo_rootx()
+            self.relative_y = event.y_root - target_board.board_frame.winfo_rooty()
+            self.sticker_frame.place(in_=target_board.board_frame, x=self.relative_x, y=self.relative_y)
+            self.current_board = target_board
+            self.previous_board = None
+            target_board.add_sticker(self)
+            # Перераспределяем стикеры на новой доске
+            target_board.rearrange_stickers()
+        else:
+            # Возвращаем стикер на исходную позицию
+            if self.previous_board:
+                self.sticker_frame.place(in_=self.previous_board.board_frame, x=self.relative_x, y=self.relative_y)
+                self.current_board = self.previous_board
+                self.previous_board = None
+                self.current_board.add_sticker(self)
+                self.current_board.rearrange_stickers()  # Перераспределяем стикеры на исходной доске
+
+        self.sticker_frame.config(bg=self.original_bg)  # Возвращаем исходный цвет
+
+    def find_target_board(self, event):
+        # Находим доску под курсором по координате x
+        sticker_center_x = self.sticker_frame.winfo_x() + self.sticker_frame.winfo_width() // 2
+
+        for board in self.boards:  # Используем переданный список досок
+            board_x = board.board_frame.winfo_x()
+            board_width = board.board_frame.winfo_width()
+
+            # Проверяем, находится ли центр стикера в пределах доски по x
+            if board_x <= sticker_center_x <= board_x + board_width:
+                return board
+
+        return None
 
     def on_motion(self, event):
         if self.x is None or self.y is None:
@@ -175,11 +231,9 @@ class Sticker:
             self.delete_task()
 
     def delete_task(self):
+        if self.on_delete:
+            self.on_delete(self)  # Уведомляем об удалении
         self.sticker_frame.destroy()
-
-    def validate_title(self, new_value):
-        # Проверяем длину нового значения
-        return len(new_value) <= 20
 
     def validate_text_length(self, event, max_length=100):
         text_widget = event.widget
