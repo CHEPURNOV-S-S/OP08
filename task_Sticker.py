@@ -109,6 +109,7 @@ class Sticker:
         self.y = event.y
 
         # Если стикер находится на доске, открепляем его
+
         if self.current_board:
             self.previous_board = self.current_board
 
@@ -122,9 +123,7 @@ class Sticker:
     def stop_move(self, event):
         target_board = self.find_target_board(event)
         if self.shadow:
-            if self.shadow.current_board:
-                self.shadow.current_board.remove_sticker(self.shadow)
-                self.shadow.delete_task()
+            self.shadow.delete_task()
 
         if target_board:
             # Находим место для вставки
@@ -183,22 +182,23 @@ class Sticker:
 
         self.sticker_frame.place(x=x, y=y)
 
+
+
         # Находим целевую доску и передаём ей информацию о позиции стикера
         target_board = self.find_target_board(event)
 
-        if target_board:
-            if self.shadow is None:
-                self.shadow = Shadow(self.master, 0, 0, self.title,
-                                     sticker=self,
-                                     board=target_board)
+        if self.shadow is None:
+            self.shadow = Shadow(self.master, 0, 0, self.title,
+                                 sticker=self,
+                                 board=target_board)
 
-            sticker_center_y = self.sticker_frame.winfo_y() + self.sticker_frame.winfo_height() // 2
+        sticker_center_y = self.sticker_frame.winfo_y() + self.sticker_frame.winfo_height() // 2
+
+        if target_board:
+            self.previous_board = target_board
             self.shadow.move_to_board(target_board, sticker_center_y)
         else:
-            if self.shadow:
-                #self.shadow.current_board.remove_sticker(self.shadow)
-                self.shadow.delete_task()
-                self.shadow = None
+            self.shadow.move_to_board(self.previous_board, sticker_center_y)
 
 
     def mark_completed(self):

@@ -177,6 +177,8 @@ class Board:
         new_sticker.toggle_edit_task()
 
     def get_insert_index(self, new_sticker_center_y):
+        if new_sticker_center_y == -1:
+            return len(self.stickers)
         for i, sticker in enumerate(self.stickers):
             if sticker.sticker_frame.winfo_exists():  # Проверяем, существует ли виджет
                 sticker_y = sticker.sticker_frame.winfo_y()
@@ -191,7 +193,6 @@ class Board:
 
         # Вставляем стикер в указанную позицию
         new_sticker_index = self.get_insert_index(sticker_center_y)
-        new_sticker_old_index = None
 
         # Проверяем есть ли стикер в списке, и ищем его индекс
         try:
