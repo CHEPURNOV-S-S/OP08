@@ -87,24 +87,27 @@ class Sticker:
         self.delete_button.grid(row=0, column=3, padx=2)
 
         # Добавляем функционал перетаскивания
-        self.sticker_frame.bind("<ButtonPress-3>", self.start_move)
-        self.sticker_frame.bind("<ButtonRelease-2>", self.stop_move)
-        self.sticker_frame.bind("<B3-Motion>", self.on_motion)
+        self.sticker_frame.bind("<ButtonPress-1>", self.start_move)
+        self.sticker_frame.bind("<ButtonRelease-1>", self.stop_move)
+        self.sticker_frame.bind("<B1-Motion>", self.on_motion)
 
-        self.title_text.bind("<ButtonPress-3>", self.start_move)
-        self.title_text.bind("<ButtonRelease-3>", self.stop_move)
-        self.title_text.bind("<B3-Motion>", self.on_motion)
+        self.title_text.bind("<ButtonPress-1>", self.start_move)
+        self.title_text.bind("<ButtonRelease-1>", self.stop_move)
+        self.title_text.bind("<B1-Motion>", self.on_motion)
 
-        self.desc_text.bind("<ButtonPress-3>", self.start_move)
-        self.desc_text.bind("<ButtonRelease-3>", self.stop_move)
-        self.desc_text.bind("<B3-Motion>", self.on_motion)
+        self.desc_text.bind("<ButtonPress-1>", self.start_move)
+        self.desc_text.bind("<ButtonRelease-1>", self.stop_move)
+        self.desc_text.bind("<B1-Motion>", self.on_motion)
 
-        self.buttons_frame.bind("<ButtonPress-3>", self.start_move)
-        self.buttons_frame.bind("<ButtonRelease-3>", self.stop_move)
-        self.buttons_frame.bind("<B3-Motion>", self.on_motion)
+        self.buttons_frame.bind("<ButtonPress-1>", self.start_move)
+        self.buttons_frame.bind("<ButtonRelease-1>", self.stop_move)
+        self.buttons_frame.bind("<B1-Motion>", self.on_motion)
 
 
     def start_move(self, event):
+        if self.editing:
+            return  # Если стикер в режиме редактирования, не начинаем перемещение
+
         self.x = event.x
         self.y = event.y
 
@@ -121,6 +124,9 @@ class Sticker:
         self.sticker_frame.config(bg=self.highlight_bg)  # Подсветка при начале перемещения
 
     def stop_move(self, event):
+        if self.editing:
+            return  # Если стикер в режиме редактирования, не начинаем перемещение
+
         target_board = self.find_target_board(event)
         if self.shadow:
             self.shadow.delete_task()
@@ -166,6 +172,9 @@ class Sticker:
         return None
 
     def on_motion(self, event):
+        if self.editing:
+            return  # Если стикер в режиме редактирования, не начинаем перемещение
+
         if self.x is None or self.y is None:
             return
 
