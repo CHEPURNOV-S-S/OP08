@@ -121,6 +121,11 @@ class Sticker:
 
     def stop_move(self, event):
         target_board = self.find_target_board(event)
+        if self.shadow:
+            if self.shadow.current_board:
+                self.shadow.current_board.remove_sticker(self.shadow)
+                self.shadow.delete_task()
+
         if target_board:
             # Находим место для вставки
             sticker_center_y = self.sticker_frame.winfo_y() + self.sticker_frame.winfo_height() // 2
@@ -178,14 +183,23 @@ class Sticker:
 
         self.sticker_frame.place(x=x, y=y)
 
-        if self.shadow == None:
-
-
         # Находим целевую доску и передаём ей информацию о позиции стикера
         target_board = self.find_target_board(event)
+
         if target_board:
+            if self.shadow is None:
+                self.shadow = Shadow(self.master, 0, 0, self.title,
+                                     sticker=self,
+                                     board=target_board)
+
             sticker_center_y = self.sticker_frame.winfo_y() + self.sticker_frame.winfo_height() // 2
-            target_board.update_shadow(sticker_center_y, self.height)
+            self.shadow.move_to_board(target_board, sticker_center_y)
+        else:
+            if self.shadow:
+                #self.shadow.current_board.remove_sticker(self.shadow)
+                self.shadow.delete_task()
+                self.shadow = None
+
 
     def mark_completed(self):
         if self.completion_time:
@@ -251,6 +265,9 @@ class Sticker:
     def delete_task(self):
         if self.on_delete:
             self.on_delete(self)  # Уведомляем об удалении
+
+        if self.current_board:
+            self.current_board.remove_sticker(self)
         self.sticker_frame.destroy()
 
     def validate_text_length(self, event, max_length=100):
@@ -348,8 +365,8 @@ class Sticker:
 
 
 class Shadow(Sticker):
-    def __init__(self, master, x, y, on_delete=None, board=None, boards=None, sticker=None):
-        super().__init__(master, x, y, title="", description="", on_delete=on_delete, board=board, boards=boards)
+    def __init__(self, master, x, y, title="", description="", on_delete=None, board=None, boards=None, sticker=None):
+        super().__init__(master, x, y, title=title, description="", on_delete=on_delete, board=board, boards=boards)
         self.is_shadow = True  # Флаг, что это тень
         self.sticker_frame.config(bg='darkgray')  # Цвет тени
         self.sticker_frame.place(in_=board.board_frame, x=x, y=y, width=self.width, height=self.height)
@@ -385,6 +402,22 @@ class Shadow(Sticker):
     def mark_completed(self):
         # Отметка выполнения тени невозможна
         pass
+
+    def move_to_board(self, target_board, sticker_center_y):
+        if target_board:
+            # Удаляем старый стикер из текущей доски, если доска поменялась
+            if self.current_board:
+                if self.current_board != target_board:
+                    self.current_board.remove_sticker(self)
+
+            # Вставляем стикер в новую позицию
+            target_board.insert_sticker(self, sticker_center_y)
+
+            # Обновляем ссылку на текущую доску
+            self.current_board = target_board
+        else:
+            if self.current_board:
+                self.current_board.remove_sticker(self)
 
 
 def create_stickers(root, num_stickers=4):

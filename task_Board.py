@@ -176,27 +176,44 @@ class Board:
         # Включаем режим редактирования для нового стикера
         new_sticker.toggle_edit_task()
 
-
     def get_insert_index(self, new_sticker_center_y):
-        # Находим место для вставки стикера
         for i, sticker in enumerate(self.stickers):
-            sticker_y = sticker.sticker_frame.winfo_y()
-            sticker_height = sticker.sticker_frame.winfo_height()
-
-            # Если центр перемещаемого стикера выше середины текущего стикера
-            if new_sticker_center_y < sticker_y + sticker_height // 2:
-                return i
-
-        # Если ниже всех стикеров, вставляем в конец
+            if sticker.sticker_frame.winfo_exists():  # Проверяем, существует ли виджет
+                sticker_y = sticker.sticker_frame.winfo_y()
+                sticker_height = sticker.sticker_frame.winfo_height()
+                if new_sticker_center_y < sticker_y + sticker_height // 2:
+                    return i
         return len(self.stickers)
 
     def insert_sticker(self, sticker, sticker_center_y):
+        if not sticker.sticker_frame.winfo_exists():
+            return  # Если стикер уже удален, ничего не делаем
+
         # Вставляем стикер в указанную позицию
         new_sticker_index = self.get_insert_index(sticker_center_y)
+        new_sticker_old_index = None
 
-        self.stickers.insert(new_sticker_index, sticker)
-        self.update_height()
-        self.rearrange_stickers()
+        # Проверяем есть ли стикер в списке, и ищем его индекс
+        try:
+            new_sticker_old_index = self.stickers.index(sticker)
+        except ValueError:
+            # стикера в списке нет.
+            new_sticker_old_index = None
+
+        if new_sticker_old_index is not None:
+            if new_sticker_old_index != new_sticker_index:
+                # Если стикер есть, и индекс не совпадает, удаляем из списка,
+                self.stickers.pop (new_sticker_old_index)
+                self.stickers.insert(new_sticker_index, sticker)
+                self.update_height()
+                self.rearrange_stickers()
+            else:
+                # Если стикер есть, и индексы совпадает, ничего не делаем,
+                pass
+        else:
+            self.stickers.insert(new_sticker_index, sticker)
+            self.update_height()
+            self.rearrange_stickers()
 
     def toggle_edit_board(self):
 
@@ -386,6 +403,8 @@ class Board:
 
     def rearrange_stickers(self):
         # Перераспределяем стикеры по вертикали
+        # Фильтруем только существующие стикеры
+        self.stickers = [sticker for sticker in self.stickers if sticker.sticker_frame.winfo_exists()]
         sticker_height = 140  # Высота каждого стикера
         spacing = 5  # Отступ между стикерами
 
