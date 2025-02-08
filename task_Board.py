@@ -103,6 +103,8 @@ class Board:
         self.response = None
 
     def start_move(self, event):
+        if self.editing:
+            return  # Если стикер в режиме редактирования, не начинаем перемещение
         # Получаем идентификатор окна доски в Canvas
         if hasattr(self, 'canvas_window_id'):
             # Получаем текущие координаты окна относительно Canvas
@@ -124,6 +126,8 @@ class Board:
         self.buttons_frame.config(bg=self.highlight_bg)
 
     def on_motion(self, event):
+        if self.editing:
+            return  # Если стикер в режиме редактирования, не начинаем перемещение
         if not hasattr(self, 'start_x') or not hasattr(self, 'start_y'):
             return  # Если перемещение не начато, ничего не делаем
 
@@ -157,6 +161,8 @@ class Board:
         self.auto_scroll_canvas(event)
 
     def stop_move(self, event):
+        if self.editing:
+            return  # Если стикер в режиме редактирования, не начинаем перемещение
         # Удаляем временные атрибуты
         if hasattr(self, 'start_x'):
             del self.start_x
@@ -293,6 +299,7 @@ class Board:
 
     def insert_sticker(self, sticker, sticker_center_y):
         if not sticker.sticker_frame.winfo_exists():
+            self.rearrange_stickers()
             return  # Если стикер уже удален, ничего не делаем
 
         # Вставляем стикер в указанную позицию
@@ -311,15 +318,14 @@ class Board:
                 self.stickers.pop (new_sticker_old_index)
                 self.stickers.insert(new_sticker_index, sticker)
                 self.update_height()
-                self.rearrange_stickers()
             else:
                 # Если стикер есть, и индексы совпадает, ничего не делаем,
                 pass
         else:
             self.stickers.insert(new_sticker_index, sticker)
             self.update_height()
-            self.rearrange_stickers()
 
+        self.rearrange_stickers()
 
 
     def toggle_edit_board(self):
@@ -400,6 +406,7 @@ class Board:
     def show_board_info(self):
         count_sticker = len (self.stickers)
         info = f"Задач на доске: {count_sticker}"
+        self.rearrange_stickers()
         self.show_custom_messagebox("Информация о доске", info)
 
     def confirm_delete_board(self):
@@ -522,6 +529,9 @@ class Board:
         sticker_height = 140  # Высота каждого стикера
         spacing = 5  # Отступ между стикерами
 
+        # Обновляем высоту доски после перераспределения
+        self.update_height()
+
         for i, sticker in enumerate(self.stickers):
             # Вычисляем новую позицию для каждого стикера
             sticker_x = 5  # Отступ слева
@@ -530,12 +540,11 @@ class Board:
             # Обновляем относительные координаты стикера
             sticker.relative_x = sticker_x
             sticker.relative_y = sticker_y
-
             # Размещаем стикер на доске
             sticker.sticker_frame.place(in_=self.board_frame, x=sticker_x, y=sticker_y)
+            # Поднимаем стикер на передний план
+            sticker.sticker_frame.lift()
 
-        # Обновляем высоту доски после перераспределения
-        self.update_height()
 
     def add_sticker(self, sticker):
         if sticker not in self.stickers:  # Проверяем, что стикер еще не добавлен
@@ -555,6 +564,7 @@ class Board:
                 self.main_window.save_data()
 
     def update_height(self):
+        # return
         # Обновляем высоту доски в зависимости от количества стикеров
         num_stickers = len(self.stickers)
         new_height = self.board_init_height + num_stickers * 145  # Каждый стикер занимает примерно 150 пикселей

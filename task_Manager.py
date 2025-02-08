@@ -213,6 +213,9 @@ class MainWindow:
     def update_scroll_region(self):
         """Обновляет регион прокрутки Canvas."""
          # Устанавливаем scroll region
+        for board in self.boards:
+            board.rearrange_stickers()
+
         bbox = self.canvas.bbox("all")
         _,_, new_width, new_height = bbox
 
