@@ -1,4 +1,6 @@
 import tkinter as tk
+from tkinter import font
+
 from task_Board import Board
 
 class MainWindow:
@@ -8,6 +10,65 @@ class MainWindow:
         self.root.geometry("900x600")
         self.root.configure(bg='white')
 
+        # Список всех досок и их окон
+        self.boards = []
+        self.board_windows = []
+        self.board_width = 220
+        self.board_spacing = 20
+
+        # Создание фиксированной левой колонки
+        self.create_fixed_sidebar()
+
+        # Создание области для досок
+        self.create_main_area()
+
+        # Настройка прокрутки колесом мыши
+        self.setup_mousewheel_scroll()
+
+        # Настройка основного layout
+        self.setup_layout()
+
+        # создаём фиксированные доски
+        self.create_fixed_boards()
+
+        # Запускаем главный цикл
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.root.mainloop()
+
+    def setup_layout(self):
+        """Настройка основного layout с использованием grid."""
+        # Фиксируем первую колонку
+        self.root.grid_columnconfigure(0, weight = 0, minsize=50)
+
+        self.root.grid_columnconfigure(1, weight = 2)
+
+    def create_fixed_sidebar(self):
+        """Создание фиксированной левой колонки."""
+        sidebar_width = 50  # Ширина фиксированной колонки
+        sidebar_bg = "#f0f0f0"  # Цвет фона
+
+        # Создаем фрейм для левой колонки
+        self.sidebar = tk.Frame(self.root, width=sidebar_width, bg=sidebar_bg, bd=2, relief=tk.RIDGE)
+        self.sidebar.grid(row=0, column=0, rowspan = 2, sticky="ns")
+        self.sidebar.grid_propagate(False)  # Запрещаем изменение размера
+
+        # Добавляем кнопку добавления новой доски
+        add_board_button_font = font.Font(size=18, weight="bold")  # Увеличенный шрифт
+        self.add_board_button = tk.Button(
+            self.sidebar,
+            text="+",
+            font=add_board_button_font,
+            command=self.add_new_board,
+            bg="#4CAF50",  # Цвет фона кнопки
+            fg="white",  # Цвет текста
+            relief=tk.FLAT,
+            width=3,  # Ширина кнопки
+            height=1  # Высота кнопки
+        )
+        self.add_board_button.pack(pady=10)
+
+    def create_main_area(self):
+        """Создание основной области для досок."""
         # Создаем Canvas для прокрутки
         self.canvas = tk.Canvas(self.root, bg="white")
         # Убираем рамку Canvas
@@ -23,39 +84,40 @@ class MainWindow:
         )
 
         # Размещаем элементы с использованием grid
-        self.canvas.grid(row=0, column=0, sticky="nsew")
-        self.scrollbar_y.grid(row=0, column=1, sticky="ns")
-        self.scrollbar_x.grid(row=1, column=0, sticky="ew")
+        self.canvas.grid(row=0, column=1, sticky="nsew")
+        self.scrollbar_y.grid(row=0, column=2, sticky="ns")
+        self.scrollbar_x.grid(row=1, column=1, sticky="ew")
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
-
-        # Список всех досок и их окон
-        self.boards = []
-        self.board_windows = []
-        self.board_width = 220
-        self.board_spacing = 20
-
-        # Создаем фиксированные доски
-        self.create_fixed_boards()
-
-        # Кнопка "Добавить доску"
-        self.add_board_button = tk.Button(
-            self.canvas,
-            text="➕ Добавить доску",
-            command=self.add_new_board,
-            bg="lightblue",
-            fg="black",
-            font=("Arial", 10),
-            width=15
-        )
-        self.canvas.create_window((800, 10), window=self.add_board_button, anchor="ne")
-
         # Привязываем обработчик прокрутки
         self.canvas.bind("<Configure>", self.on_canvas_configure)
 
-        # Запускаем главный цикл
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
-        self.root.mainloop()
+    def setup_mousewheel_scroll(self):
+        """Настройка прокрутки колесом мыши."""
+        # Привязываем событие колеса мыши к Canvas
+        if self.canvas:
+            self.canvas.bind("<MouseWheel>", self.on_mousewheel)  # Для Windows
+            self.canvas.bind("<Button-4>", self.on_mousewheel)  # Для Linux (прокрутка вверх)
+            self.canvas.bind("<Button-5>", self.on_mousewheel)  # Для Linux (прокрутка вниз)
+
+            # Перехватываем события колеса мыши на дочерних виджетах
+            self.canvas.bind_all("<MouseWheel>", self.on_mousewheel)
+            self.canvas.bind_all("<Button-4>", self.on_mousewheel)
+            self.canvas.bind_all("<Button-5>", self.on_mousewheel)
+
+    def on_mousewheel(self, event):
+        """Обработчик прокрутки колесом мыши."""
+        # Получаем текущую позицию прокрутки (от 0 до 1)
+        current_scroll_position = self.canvas.yview()[0]
+
+        # Определяем направление прокрутки
+        if event.num == 5 or event.delta < 0:  # Прокрутка вниз
+            if current_scroll_position < 1.0:  # Проверяем, что можно прокручивать дальше
+                self.canvas.yview_scroll(1, "units")
+        elif event.num == 4 or event.delta > 0:  # Прокрутка вверх
+            if current_scroll_position > 0.0:  # Проверяем, что можно прокручивать вверх
+                self.canvas.yview_scroll(-1, "units")
+
 
     def create_fixed_boards(self):
         # Создаем фиксированные доски через add_new_board
@@ -92,7 +154,7 @@ class MainWindow:
         self.boards.append(new_board)
 
         # Обновляем scroll region
-        self.schedule_update_scroll_region()
+        self.schedule_update_scroll_region(scroll_to_end_x = True)
 
     def on_canvas_configure(self, _):  # type: ignore
         """Обновляет позиции досок при прокрутке Canvas."""
@@ -103,17 +165,25 @@ class MainWindow:
             # Обновляем координаты с учетом смещения прокрутки
             self.canvas.coords(window_id, x, y)
 
-    def schedule_update_scroll_region(self):
+    def schedule_update_scroll_region(self,
+                                      scroll_to_end_x = False):
         """
         Планирует обновление scrollregion Canvas через следующий цикл событий.
         """
         self.root.after(1, self.update_scroll_region) # type: ignore
 
+        # Смещаем прокрутку так, чтобы новая доска была видна
+        if scroll_to_end_x is True:
+            self.root.after(2, self.canvas.xview_moveto, 1.0)
+
+        # Смещаем прокрутку так, чтобы был виден последний добавленный стикер
+
+
     def on_board_resize(self, event):
         """
         Обработчик события изменения размера доски.
         """
-        print(f"Доска изменена: {event.width}x{event.height}")
+        # print(f"Доска изменена: {event.width}x{event.height}")
         self.schedule_update_scroll_region()
 
     def update_scroll_region(self):
@@ -123,8 +193,8 @@ class MainWindow:
         _,_, new_width, new_height = bbox
 
         # вывод, для откладки
-        print(bbox)
-        print(f"self.canvas.configure(scrollregion=(0, 0, {new_width}, {new_height}))")
+        # print(bbox)
+        # print(f"self.canvas.configure(scrollregion=(0, 0, {new_width}, {new_height}))")
         self.canvas.configure(scrollregion=(0, 0, new_width+10, new_height+10))
 
 

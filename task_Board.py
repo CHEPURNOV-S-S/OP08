@@ -1,5 +1,5 @@
 import tkinter as tk
-
+import time
 from tkinter import font
 from tkinter import scrolledtext, simpledialog, messagebox
 from datetime import datetime
@@ -93,6 +93,8 @@ class Board:
         self.buttons_frame.bind("<ButtonRelease-1>", self.stop_move)
         self.buttons_frame.bind("<B1-Motion>", self.on_motion)
 
+        self.last_scroll_time = time.time()
+
         # Editing state
         self.editing = False  # Флаг для отслеживания состояния редактирования
         self.response = None
@@ -149,6 +151,8 @@ class Board:
             self.master.coords(self.canvas_window_id, new_x, new_y)
             self.rearrange_other_boards()
 
+        self.auto_scroll_canvas(event)
+
     def stop_move(self, event):
         # Удаляем временные атрибуты
         if hasattr(self, 'start_x'):
@@ -190,6 +194,37 @@ class Board:
             target_index = len(self.boards) - 1
 
         return target_index
+
+    def auto_scroll_canvas(self, event):
+        """Автоматическая прокрутка Canvas, если стикер находится у края."""
+        # Проверяем, прошло ли достаточно времени с момента последней прокрутки
+        current_time = time.time()
+        if hasattr(self, "last_scroll_time"):
+            if current_time - self.last_scroll_time < 0.1:  # Задержка 0.1 секунды
+                return
+
+        self.last_scroll_time = current_time
+
+        # Получаем координаты курсора относительно Canvas
+        canvas = self.master
+        # Задаем зону активации прокрутки (например, 20 пикселей от края)
+        scroll_zone = 50
+
+        # Прокрутка по горизонтали
+        canvas_width = canvas.winfo_width()  # Получаем ширину
+        cursor_x = event.x_root - canvas.winfo_rootx()
+        current_x_scroll_position = canvas.xview()[0]
+
+        # print(f"cursor_x:y: {cursor_x}:{cursor_y}")
+        # Прокрутка влево
+        if cursor_x < scroll_zone:
+            if current_x_scroll_position > 0.0:
+                canvas.xview_scroll(-1, "units")
+
+        # Прокрутка вправо
+        elif cursor_x > canvas_width - scroll_zone:
+            if current_x_scroll_position < 1.0:
+                canvas.xview_scroll(1, "units")
 
     def rearrange_other_boards(self):
         """Перераспределяет другие доски в списке boards."""
@@ -355,11 +390,8 @@ class Board:
 
 
     def show_board_info(self):
-        info = f"Время создания: {self.creation_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-        if self.response:
-            info += f"Время завершения: {self.completion_time.strftime('%Y-%m-%d %H:%M:%S')}"
-        else:
-            info += "Время завершения: Доска не завершена"
+        count_sticker = len (self.stickers)
+        info = f"Задач на доске: {count_sticker}"
         self.show_custom_messagebox("Информация о доске", info)
 
     def confirm_delete_board(self):
@@ -374,7 +406,11 @@ class Board:
             self.delete_board()
 
     def delete_board(self):
+        board_index = self.boards.index(self)
+        self.boards.pop(board_index)
         self.board_frame.destroy()
+        self.rearrange_other_boards()
+
 
     def validate_text_length(self, event, max_length=100):
         text_widget = event.widget
@@ -478,7 +514,7 @@ class Board:
 
         for i, sticker in enumerate(self.stickers):
             # Вычисляем новую позицию для каждого стикера
-            sticker_x = 3  # Отступ слева
+            sticker_x = 5  # Отступ слева
             sticker_y = self.board_init_height + i * (sticker_height + spacing)
 
             # Обновляем относительные координаты стикера

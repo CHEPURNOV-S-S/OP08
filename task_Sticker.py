@@ -1,11 +1,13 @@
 import tkinter as tk
 from tkinter import scrolledtext
 from datetime import datetime
+import time
 
 
 class Sticker:
     def __init__(self, master, x, y, title="Задача", description="Описание задачи",
                  on_delete=None, board=None, boards=None):
+
         self.master = master
         self.title = title
         self.description = description
@@ -102,6 +104,7 @@ class Sticker:
         self.buttons_frame.bind("<ButtonRelease-1>", self.stop_move)
         self.buttons_frame.bind("<B1-Motion>", self.on_motion)
 
+        self.last_scroll_time = time.time()
 
     def start_move(self, event):
         if self.editing:
@@ -129,6 +132,7 @@ class Sticker:
         target_board = self.find_target_board(event)
         if self.shadow:
             self.shadow.delete_task()
+            self.shadow = None
 
         if target_board:
             # Находим место для вставки
@@ -190,7 +194,8 @@ class Sticker:
 
         self.sticker_frame.place(x=x, y=y)
 
-
+        # Автоматическая прокрутка Canvas
+        self.auto_scroll_canvas(event)
 
         # Находим целевую доску и передаём ей информацию о позиции стикера
         target_board = self.find_target_board(event)
@@ -198,7 +203,7 @@ class Sticker:
         if self.shadow is None:
             self.shadow = Shadow(self.master, 0, 0, self.title,
                                  sticker=self,
-                                 board=target_board)
+                                 boards = self.boards)
 
         sticker_center_y = self.sticker_frame.winfo_y() + self.sticker_frame.winfo_height() // 2
 
@@ -208,6 +213,52 @@ class Sticker:
         else:
             self.shadow.move_to_board(self.previous_board, sticker_center_y)
 
+    def auto_scroll_canvas(self, event):
+        """Автоматическая прокрутка Canvas, если стикер находится у края."""
+        # Проверяем, прошло ли достаточно времени с момента последней прокрутки
+        current_time = time.time()
+        if hasattr(self, "last_scroll_time"):
+            if current_time - self.last_scroll_time < 0.1:  # Задержка 0.1 секунды
+                return
+
+        self.last_scroll_time = current_time
+
+        # Получаем координаты курсора относительно Canvas
+        canvas = self.master
+        # Задаем зону активации прокрутки (например, 20 пикселей от края)
+        scroll_zone = 50
+
+        # Прокрутка по вертикале
+        canvas_height = canvas.winfo_height()
+        cursor_y = event.y_root - canvas.winfo_rooty()
+        # Получаем текущую позицию прокрутки (от 0 до 1)
+        current_y_scroll_position = canvas.yview()[0]
+
+        # Прокрутка вверх
+        if cursor_y < scroll_zone:
+            if current_y_scroll_position > 0.0:
+                canvas.yview_scroll(-1, "units")  # Прокручиваем вверх
+
+        # Прокрутка вниз
+        elif cursor_y > canvas_height - scroll_zone:
+            if current_y_scroll_position < 1.0:
+                canvas.yview_scroll(1, "units")  # Прокручиваем вниз
+
+        # Прокрутка по горизонтали
+        canvas_width = canvas.winfo_width()  # Получаем ширину
+        cursor_x = event.x_root - canvas.winfo_rootx()
+        current_x_scroll_position = canvas.xview()[0]
+
+        # print(f"cursor_x:y: {cursor_x}:{cursor_y}")
+        # Прокрутка влево
+        if cursor_x < scroll_zone:
+            if current_x_scroll_position > 0.0:
+                canvas.xview_scroll(-1, "units")
+
+        # Прокрутка вправо
+        elif cursor_x > canvas_width - scroll_zone:
+            if current_x_scroll_position < 1.0:
+                canvas.xview_scroll(1, "units")
 
     def mark_completed(self):
         if self.completion_time:
@@ -377,7 +428,7 @@ class Shadow(Sticker):
         super().__init__(master, x, y, title=title, description="", on_delete=on_delete, board=board, boards=boards)
         self.is_shadow = True  # Флаг, что это тень
         self.sticker_frame.config(bg='darkgray')  # Цвет тени
-        self.sticker_frame.place(in_=board.board_frame, x=x, y=y, width=self.width, height=self.height)
+        #self.sticker_frame.place(in_=board.board_frame, x=x, y=y, width=self.width, height=self.height)
         self.title_text.config(bg='gray')
         self.desc_text.config(bg='gray')
         self.buttons_frame.config(bg='gray')
