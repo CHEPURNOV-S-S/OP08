@@ -12,6 +12,9 @@ class Board:
         self.board_spacing = 20
         self.original_column = None
         self.master = master
+
+        # Ссылка на главное окно для вызова save_data
+        self.main_window = None
         self.title = title
         self.stickers = []
         self.is_fixed = is_fixed  # Флаг для фиксированных досок
@@ -265,7 +268,8 @@ class Board:
             board = self,
             boards = self.boards
         )
-
+        # Передаем ссылку на главное окно
+        new_sticker.main_window = self.main_window
         # Сохраняем относительные координаты стикера
         new_sticker.relative_x = sticker_relative_x
         new_sticker.relative_y = sticker_relative_y
@@ -354,6 +358,8 @@ class Board:
             # Закрываем палитру цветов
             if hasattr(self, 'color_palette') and self.color_palette:
                 self.color_palette.destroy()
+            if self.main_window:
+                self.main_window.save_data()
 
     def show_color_palette(self):
         # Создаем Toplevel окно для палитры цветов
@@ -387,6 +393,8 @@ class Board:
         self.board_frame.config(bg = self.original_bg)
         self.title_text.config(bg = self.highlight_bg)
         self.buttons_frame.config(bg = self.original_bg)
+        if self.main_window:
+            self.main_window.save_data()
 
 
     def show_board_info(self):
@@ -410,6 +418,8 @@ class Board:
         self.boards.pop(board_index)
         self.board_frame.destroy()
         self.rearrange_other_boards()
+        if self.main_window:
+            self.main_window.save_data()
 
 
     def validate_text_length(self, event, max_length=100):
@@ -533,12 +543,16 @@ class Board:
             self.update_height()
             # Размещаем стикер напрямую на board_frame
             self.rearrange_stickers()
+            if self.main_window:
+                self.main_window.save_data()
 
     def remove_sticker(self, sticker):
         if sticker in self.stickers:
             self.stickers.remove(sticker)
             self.update_height()
             self.rearrange_stickers()
+            if self.main_window:
+                self.main_window.save_data()
 
     def update_height(self):
         # Обновляем высоту доски в зависимости от количества стикеров

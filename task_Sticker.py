@@ -9,6 +9,8 @@ class Sticker:
                  on_delete=None, board=None, boards=None):
 
         self.master = master
+        # Ссылка на главное окно для вызова save_data
+        self.main_window = None
         self.title = title
         self.description = description
         self.on_delete = on_delete  # Коллбэк для уведомления о удалении
@@ -159,6 +161,8 @@ class Sticker:
                 self.current_board.rearrange_stickers()
 
         self.sticker_frame.config(bg=self.original_bg)  # Возвращаем исходный цвет
+        if self.main_window:
+            self.main_window.save_data()
 
     def find_target_board(self, _):
         # Находим доску под курсором по координате x
@@ -275,6 +279,9 @@ class Sticker:
             self.title_text.config(bg=self.completed_bg)  # Изменяем фон на lightgreen
             self.show_custom_messagebox("Задача выполнена", "Задача отмечена как выполненная!")
 
+        if self.main_window:
+            self.main_window.save_data()
+
     def toggle_edit_task(self):
         if not self.editing:
             # Включаем режим редактирования
@@ -306,6 +313,8 @@ class Sticker:
                 self.description = new_desc
             self.desc_text.config(state='disabled')
             self.desc_text.yview_moveto(0)  # Прокручиваем к началу текста
+            if self.main_window:
+                self.main_window.save_data()
 
     def show_info(self):
         info = f"Время создания: {self.creation_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
@@ -328,6 +337,8 @@ class Sticker:
         if self.current_board:
             self.current_board.remove_sticker(self)
         self.sticker_frame.destroy()
+        if self.main_window:
+            self.main_window.save_data()
 
     def validate_text_length(self, event, max_length=100):
         text_widget = event.widget

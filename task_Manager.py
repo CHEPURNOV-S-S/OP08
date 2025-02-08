@@ -1,7 +1,10 @@
 import tkinter as tk
 from tkinter import font
+import json
+import os
 
 from task_Board import Board
+from task_Sticker import Sticker
 
 class MainWindow:
     def __init__(self):
@@ -28,8 +31,11 @@ class MainWindow:
         # Настройка основного layout
         self.setup_layout()
 
-        # создаём фиксированные доски
-        self.create_fixed_boards()
+        self.data_file = "task_manager_data.json"  # Файл для хранения данных
+        # Загружаем данные при запуске
+        if self.load_data() is False:
+            # создаём фиксированные доски, если данные не загружены
+            self.create_fixed_boards()
 
         # Запускаем главный цикл
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -121,7 +127,22 @@ class MainWindow:
 
     def create_fixed_boards(self):
         # Создаем фиксированные доски через add_new_board
-        self.add_new_board(title="В очереди", is_fixed=True, base_color='lightcyan')
+        board = self.add_new_board(title="В очереди", is_fixed=True, base_color='lightcyan')
+        first_task_desc = "Создай список задач в доске \"В очереди\". \
+Перенеси те за которые взялся на доску \"В работе\".\
+После выполнения перенеси в доску \"выполнено\" или удали задачу.\
+Если нужны ещё доски создай новую"
+        sticker = Sticker(
+            master=self.canvas,
+            x=0,
+            y=0,
+            title="Список задач",
+            description=first_task_desc,
+            on_delete=board.remove_sticker,
+            board=board,
+            boards=self.boards
+        )
+        board.add_sticker(sticker)
         self.add_new_board(title="В работе", is_fixed=True, base_color='chocolate')
         self.add_new_board(title="Выполнено", is_fixed=True, base_color='lightgreen')
 
@@ -142,7 +163,8 @@ class MainWindow:
             base_color=base_color,
             boards=self.boards
         )
-
+        # Передаем ссылку на главное окно
+        new_board.main_window = self
         # Привязываем события изменения размера
 
         new_board.board_frame.bind("<Configure>", self.on_board_resize)
@@ -155,6 +177,8 @@ class MainWindow:
 
         # Обновляем scroll region
         self.schedule_update_scroll_region(scroll_to_end_x = True)
+
+        return new_board
 
     def on_canvas_configure(self, _):  # type: ignore
         """Обновляет позиции досок при прокрутке Canvas."""
@@ -199,8 +223,69 @@ class MainWindow:
 
 
     def on_close(self):
-        if self.confirm_exit():
-            self.root.destroy()
+        # if self.confirm_exit(): # Отключил подтверждение о закрытии программы
+        self.root.destroy()
+
+    def save_data(self):
+        """Сохраняет текущее состояние досок и задач в JSON-файл."""
+        data = []
+        for board in self.boards:
+            board_data = {
+                "title": board.title,
+                "is_fixed": board.is_fixed,
+                "base_color": board.original_bg,
+                "x": board.master.coords(board.canvas_window_id)[0],
+                "y": board.master.coords(board.canvas_window_id)[1],
+                "stickers": [
+                    {
+                        "title": sticker.title,
+                        "description": sticker.description,
+                        "completed": bool(sticker.completion_time),
+                        "relative_x": sticker.relative_x,
+                        "relative_y": sticker.relative_y
+                    }
+                    for sticker in board.stickers
+                ]
+            }
+            data.append(board_data)
+
+        with open(self.data_file, "w") as f:
+            json.dump(data, f, indent=4)
+
+    def load_data(self):
+        """Загружает данные из JSON-файла и восстанавливает состояние досок и задач."""
+        if not os.path.exists(self.data_file):
+            return  False# Если файл не существует, ничего не делаем
+
+        with open(self.data_file, "r") as f:
+            data = json.load(f)
+
+        for board_data in data:
+            board = self.add_new_board(
+                title=board_data["title"],
+                is_fixed=board_data["is_fixed"],
+                base_color=board_data["base_color"]
+            )
+            x, y = board_data["x"], board_data["y"]
+
+            # self.master.coords(board.canvas_window_id, x, y)
+
+            for sticker_data in board_data["stickers"]:
+                sticker = Sticker(
+                    master=self.canvas,
+                    x=sticker_data["relative_x"],
+                    y=sticker_data["relative_y"],
+                    title=sticker_data["title"],
+                    description=sticker_data["description"],
+                    on_delete=board.remove_sticker,
+                    board=board,
+                    boards=self.boards
+                )
+                if sticker_data["completed"]:
+                    sticker.mark_completed()
+                board.add_sticker(sticker)
+        # сообщаем, что данные загружены
+        return True
 
     def confirm_exit(self):
         response = self.show_custom_messagebox("Подтверждение выхода", "Вы действительно хотите выйти?")
