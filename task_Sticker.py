@@ -1,6 +1,5 @@
 import tkinter as tk
-from selectors import SelectorKey
-from tkinter import scrolledtext, simpledialog, messagebox
+from tkinter import scrolledtext
 from datetime import datetime
 
 
@@ -157,7 +156,7 @@ class Sticker:
 
         self.sticker_frame.config(bg=self.original_bg)  # Возвращаем исходный цвет
 
-    def find_target_board(self, event):
+    def find_target_board(self, _):
         # Находим доску под курсором по координате x
         sticker_center_x = self.sticker_frame.winfo_x() + self.sticker_frame.winfo_width() // 2
 

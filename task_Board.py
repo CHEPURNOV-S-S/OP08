@@ -9,6 +9,8 @@ from task_Sticker import Sticker
 class Board:
     def __init__(self, master, x, y, title="Доска",
                  is_fixed=False, base_color=None, boards=None):
+        self.board_spacing = 20
+        self.original_column = None
         self.master = master
         self.title = title
         self.stickers = []
@@ -39,8 +41,9 @@ class Board:
         self.board_init_height = 75
         # Создаем фрейм доски с заданной шириной
         self.board_frame = tk.Frame(master, bg=self.original_bg, bd=2)
-        self.board_frame.place(x=x, y=y, width= self.board_width, height = self.board_init_height )
-
+        #self.board_frame.place(x=x, y=y, width= self.board_width, height = self.board_init_height )
+        # Добавляем доску в Canvas с помощью create_window
+        self.canvas_window_id = master.create_window((x, y), window=self.board_frame, anchor="nw")
         # Title Text с выравниванием по центру и ограничением длины
         self.title_text = tk.Text(self.board_frame, height=1, width=23, relief=tk.RIDGE,
                                   font=('Consolas', 12, 'bold'), bg=self.highlight_bg)
@@ -95,20 +98,108 @@ class Board:
         self.response = None
 
     def start_move(self, event):
-        self.x = event.x
-        self.y = event.y
-        self.board_frame.config(bg=self.highlight_bg)  # Подсветка при начале перемещения
-        self.buttons_frame.config(bg=self.highlight_bg)  # Подсветка при начале перемещения
+        # Получаем идентификатор окна доски в Canvas
+        if hasattr(self, 'canvas_window_id'):
+            # Получаем текущие координаты окна относительно Canvas
+            self.start_x, self.start_y = self.master.coords(self.canvas_window_id)
+        else:
+            # Если canvas_window_id отсутствует, используем winfo_x и winfo_y
+            self.start_x = self.board_frame.winfo_x()
+            self.start_y = self.board_frame.winfo_y()
+
+        # Сохраняем начальные координаты курсора
+        self.drag_start_x = event.x_root
+        self.drag_start_y = event.y_root
+
+        # Индекс текущей доски в списке boards
+        self.original_index = self.boards.index(self)
+
+        # Подсветка при начале перемещения
+        self.board_frame.config(bg=self.highlight_bg)
+        self.buttons_frame.config(bg=self.highlight_bg)
+
+    def on_motion(self, event):
+        if not hasattr(self, 'start_x') or not hasattr(self, 'start_y'):
+            return  # Если перемещение не начато, ничего не делаем
+
+        # Вычисляем смещение курсора относительно начальной позиции
+        delta_x = event.x_root - self.drag_start_x
+        delta_y = event.y_root - self.drag_start_y
+
+        # Вычисляем новые координаты доски
+        new_x = self.start_x + delta_x
+        new_y = self.start_y + delta_y
+
+        # Ограничиваем перемещение за пределы слева и сверху
+        if new_x < self.min_x:
+            new_x = self.min_x
+        if new_y < self.min_y:
+            new_y = self.min_y
+
+        # Проверяем, пересекает ли доска границы "колонки"
+        target_index = self.find_target_column(event)
+        if target_index != self.original_index:
+            # Перемещаем доску в новую позицию в списке boards
+            self.boards.pop(self.original_index)
+            self.boards.insert(target_index, self)
+            self.original_index = target_index
+
+        # Обновляем позицию доски через Canvas.coords
+        if hasattr(self, 'canvas_window_id'):
+            self.master.coords(self.canvas_window_id, new_x, new_y)
+            self.rearrange_other_boards()
 
     def stop_move(self, event):
-        self.x = None
-        self.y = None
-        self.board_frame.config(bg=self.original_bg)  # Возвращаем исходный цвет при окончании перемещения
-        self.buttons_frame.config(bg=self.original_bg)  # Подсветка при начале перемещения
-        self.board_frame.place(y=self.min_y)
-        # Обновляем позиции всех стикеров
-        #x = self.board_frame.winfo_x()
-        #self.update_stickers_position(x, self.min_y)
+        # Удаляем временные атрибуты
+        if hasattr(self, 'start_x'):
+            del self.start_x
+        if hasattr(self, 'start_y'):
+            del self.start_y
+        if hasattr(self, 'drag_start_x'):
+            del self.drag_start_x
+        if hasattr(self, 'drag_start_y'):
+            del self.drag_start_y
+
+        # Возвращаем исходный цвет
+        self.board_frame.config(bg=self.original_bg)
+        self.buttons_frame.config(bg=self.original_bg)
+
+        # Перемещаем доску к верху окна (по минимальной координате y)
+        if hasattr(self, 'canvas_window_id'):
+            # Перемещаем доску в ближайшую доступную позицию
+            self.rearrange_other_boards()
+            target_index = self.find_target_column(event)
+            x_position = target_index * (self.board_width + self.board_spacing) + 10
+            self.master.coords(self.canvas_window_id, x_position, 10)
+
+    def find_target_column(self, event):
+        """Определяет целевую колонку для доски."""
+        if hasattr(self, 'canvas_window_id'):
+            # Получаем текущие координаты окна доски относительно Canvas
+            x, y = self.master.coords(self.canvas_window_id)
+            board_center_x = x + self.board_frame.winfo_width() // 2
+        else:
+            # Если canvas_window_id отсутствует, используем winfo_x как резервный вариант
+            board_center_x = self.board_frame.winfo_x() + self.board_frame.winfo_width() // 2
+
+        # Вычисляем индекс целевой колонки
+        target_index = int(board_center_x // (self.board_width + self.board_spacing))  # Явное преобразование в int
+
+        # Ограничиваем индекс, чтобы он не выходил за пределы списка досок
+        if target_index > len(self.boards) - 1:
+            target_index = len(self.boards) - 1
+
+        return target_index
+
+    def rearrange_other_boards(self):
+        """Перераспределяет другие доски в списке boards."""
+
+        # Обновляем позиции досок
+        for i, board_current in enumerate(self.boards):
+            if board_current != self:
+                x_position = i * (self.board_width + self.board_spacing) + 10
+                y_position = 10
+                board_current.master.coords(board_current.canvas_window_id, x_position, y_position)
 
     def update_stickers_position(self, board_new_x, board_new_y):
         # Обновляем позиции всех стикеров относительно новой позиции доски
@@ -117,32 +208,6 @@ class Board:
             sticker_x = board_new_x + sticker.relative_x
             sticker_y = board_new_y + sticker.relative_y
             sticker.sticker_frame.place(x=sticker_x, y=sticker_y)
-
-
-    def on_motion(self, event):
-        if self.x is None or self.y is None:
-            return
-        delta_x = event.x - self.x
-        delta_y = event.y - self.y
-        # перемещаем только по горизонтали.
-        x = self.board_frame.winfo_x() + delta_x
-        y = self.board_frame.winfo_y() + delta_y
-
-        # Ограничиваем перемещение за пределы слева и сверху
-        if x < self.min_x:
-            x = self.min_x
-
-        if y < self.min_y:
-            y = self.min_y
-
-        # Сохраняем новые координаты для продолжения перемещения
-        #self.x = event.x
-        #self.y = event.y
-
-        self.board_frame.place(x=x, y=y)
-        # Обновляем позиции всех стикеров
-        #self.update_stickers_position(x, y)
-
 
 
     def add_new_sticker(self):
@@ -215,6 +280,8 @@ class Board:
             self.stickers.insert(new_sticker_index, sticker)
             self.update_height()
             self.rearrange_stickers()
+
+
 
     def toggle_edit_board(self):
 
@@ -403,7 +470,7 @@ class Board:
         self.board_frame.config(height=height)
 
     def rearrange_stickers(self):
-        # Перераспределяем стикеры по вертикали
+        # Перераспределяем стикеры по вертикали.
         # Фильтруем только существующие стикеры
         self.stickers = [sticker for sticker in self.stickers if sticker.sticker_frame.winfo_exists()]
         sticker_height = 140  # Высота каждого стикера
@@ -442,10 +509,12 @@ class Board:
         num_stickers = len(self.stickers)
         new_height = self.board_init_height + num_stickers * 145  # Каждый стикер занимает примерно 150 пикселей
 
-        # Обновляем высоту через .place()
-        current_x = self.board_frame.winfo_x()
-        current_y = self.board_frame.winfo_y()
-        self.board_frame.place(x=current_x, y=current_y, width=self.board_width, height=new_height)
+        # Обновляем размеры через Canvas
+        self.master.itemconfig(self.canvas_window_id, height=new_height)
+        # # Обновляем высоту через .place()
+        # current_x = self.board_frame.winfo_x()
+        # current_y = self.board_frame.winfo_y()
+        # self.board_frame.place(x=current_x, y=current_y, width=self.board_width, height=new_height)
 
 # Определение цветов
 
@@ -464,17 +533,3 @@ COLORS_HIGHLIGHT_BG = {
 
 COLORS_ORIGINAL_BG = COLORS_HIGHLIGHT_BG.keys()
 
-
-# Пример использования класса Board
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.geometry("800x600")
-    root.title("Менеджер задач")
-
-    # Создаем доску
-
-    board_queue = Board(root, x=10, y=10, title="В очереди", is_fixed=True, base_color='lightcyan')
-    board_in_progress = Board(root, x=230, y=10, title="В работе", is_fixed=True, base_color='chocolate')
-    board_done = Board(root, x=450, y=10, title="Выполнено", is_fixed=True, base_color='lightgreen')
-    board = Board(root, x=670, y=10, title="Доска 1")
-    root.mainloop()
