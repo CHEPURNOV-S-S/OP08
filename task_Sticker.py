@@ -264,7 +264,7 @@ class Sticker:
             if current_x_scroll_position < 1.0:
                 canvas.xview_scroll(1, "units")
 
-    def mark_completed(self):
+    def mark_completed(self, silent = False):
         if self.completion_time:
             # Если задача уже выполнена, спрашиваем пользователя, хочет ли он отменить выполнение
             response = self.custom_messagebox_askyesno("Отмена выполнения", "Пометить задачу не выполненной?")
@@ -277,7 +277,8 @@ class Sticker:
             # Если задача не выполнена, помечаем её как выполненную
             self.completion_time = datetime.now()
             self.title_text.config(bg=self.completed_bg)  # Изменяем фон на lightgreen
-            self.show_custom_messagebox("Задача выполнена", "Задача отмечена как выполненная!")
+            if silent is False:
+                self.show_custom_messagebox("Задача выполнена", "Задача отмечена как выполненная!")
 
         if self.main_window:
             self.main_window.save_data()

@@ -227,6 +227,7 @@ class MainWindow:
 
     def on_close(self):
         # if self.confirm_exit(): # Отключил подтверждение о закрытии программы
+        self.save_data()
         self.root.destroy()
 
     def save_data(self):
@@ -252,15 +253,15 @@ class MainWindow:
             }
             data.append(board_data)
 
-        with open(self.data_file, "w") as f:
-            json.dump(data, f, indent=4)
+        with open(self.data_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
 
     def load_data(self):
         """Загружает данные из JSON-файла и восстанавливает состояние досок и задач."""
         if not os.path.exists(self.data_file):
             return  False# Если файл не существует, ничего не делаем
 
-        with open(self.data_file, "r") as f:
+        with open(self.data_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         for board_data in data:
@@ -285,7 +286,7 @@ class MainWindow:
                     boards=self.boards
                 )
                 if sticker_data["completed"]:
-                    sticker.mark_completed()
+                    sticker.mark_completed(silent=True)
                 board.add_sticker(sticker)
         # сообщаем, что данные загружены
         return True
